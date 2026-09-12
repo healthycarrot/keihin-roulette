@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#00a7e1">
+<title>京浜東北線 集合駅ルーレット</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(150deg,#def5ff,#f7fbfd);color:#173442;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100svh}
+main{max-width:640px;margin:auto;padding:28px 16px calc(32px + env(safe-area-inset-bottom))}header{text-align:center;margin-bottom:24px}.badge{color:#007faa;font-weight:800;font-size:14px}h1{font-size:28px;margin:12px 0}header p{color:#607680;font-size:14px}
+.card{background:white;border-radius:24px;padding:20px;box-shadow:0 16px 48px #087da51a}
+#result{min-height:140px;display:grid;place-items:center;text-align:center;background:#effaff;border:2px solid #00a7e1;border-radius:18px;font-size:clamp(24px,7vw,36px);font-weight:900;color:#007aa4;overflow-wrap:anywhere}
+button{font:inherit;cursor:pointer;touch-action:manipulation}button:disabled{opacity:.5;cursor:default}#draw{margin-top:16px;width:100%;min-height:58px;background:#009ed3;color:white;border:0;border-radius:14px;font-weight:800;font-size:20px}.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:22px 0 12px;flex-wrap:wrap}.toolbar button{padding:9px;border:1px solid #b9dfe9;border-radius:9px;background:#f0faff;color:#00769d}#count{font-size:14px;font-weight:700}
+#stations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}label{display:flex;gap:8px;align-items:center;min-height:48px;border:1px solid #d5e7ed;border-radius:10px;padding:8px;font-size:14px;cursor:pointer}label:has(input:checked){background:#effaff;border-color:#7fcfe9}input{width:20px;height:20px;accent-color:#009ed3;flex-shrink:0}
+h2{font-size:14px;color:#607680;margin-top:24px}#history{display:flex;gap:8px;flex-wrap:wrap;color:#607680;font-size:14px}.chip{background:#e9f8fe;border-radius:20px;padding:7px 10px;color:#00769d}footer{text-align:center;font-size:12px;color:#607680;margin-top:18px}@media(min-width:560px){#stations{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+<main>
+<header><div class="badge">● JK 京浜東北線</div><h1>集合駅ルーレット</h1><p>赤羽〜蒲田の中から、集合駅をランダムで決定</p></header>
+<section class="card">
+<div id="result" role="status" aria-live="polite">どこに集まる？</div>
+<button id="draw" type="button">🎲 抽選する</button>
+<div class="toolbar"><span id="count"></span><div><button id="allOn" type="button">全駅ON</button> <button id="allOff" type="button">全駅OFF</button></div></div>
+<div id="stations" role="group" aria-label="抽選する候補駅"></div>
+<h2>直近の抽選</h2><div id="history">まだありません</div>
+</section><footer>赤羽〜蒲田・全22駅</footer>
+</main>
+<script>
+(()=>{
+const names=["赤羽","東十条","王子","上中里","田端","西日暮里","日暮里","鶯谷","上野","御徒町","秋葉原","神田","東京","有楽町","新橋","浜松町","田町","高輪ゲートウェイ","品川","大井町","大森","蒲田"];
+const $=id=>document.getElementById(id), box=$("stations"), result=$("result"), draw=$("draw");
+let busy=false,history=[];
+names.forEach((name,i)=>{const label=document.createElement("label"),input=document.createElement("input");input.type="checkbox";input.checked=true;input.value=i;label.append(input,document.createTextNode(name));box.append(label)});
+const boxes=[...box.querySelectorAll("input")];
+const selected=()=>boxes.filter(x=>x.checked).map(x=>names[Number(x.value)]);
+function update(){const n=selected().length;$("count").textContent="候補："+n+"駅 / 22駅";draw.disabled=busy||n===0;if(!n)result.textContent="候補駅を1つ以上ONにしてね"}
+function pick(list){const n=new Uint32Array(1),limit=Math.floor(4294967296/list.length)*list.length;do{globalThis.crypto.getRandomValues(n)}while(n[0]>=limit);return list[n[0]%list.length]}
+function lock(value){busy=value;boxes.forEach(x=>x.disabled=value);$("allOn").disabled=value;$("allOff").disabled=value;update()}
+box.addEventListener("change",update);
+$("allOn").onclick=()=>{boxes.forEach(x=>x.checked=true);update()};
+$("allOff").onclick=()=>{boxes.forEach(x=>x.checked=false);update()};
+draw.onclick=()=>{
+ const candidates=selected();if(busy||!candidates.length)return;
+ lock(true);result.setAttribute("aria-live","off");
+ let ticks=0;const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+ const timer=setInterval(()=>{
+ result.textContent=pick(candidates)+"駅";
+ if(++ticks>=(reduced?1:18)){
+ clearInterval(timer);const winner=pick(candidates);
+ result.setAttribute("aria-live","polite");result.textContent="🎉 "+winner+"駅";
+ history.unshift(winner);history=history.slice(0,5);$("history").replaceChildren();
+ history.forEach(name=>{const chip=document.createElement("span");chip.className="chip";chip.textContent=name+"駅";$("history").append(chip)});
+ lock(false);
+ }
+ },65);
+};
+update();
+})();
+</script>
+</html>
